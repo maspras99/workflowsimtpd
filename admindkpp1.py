@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+import random
 from datetime import datetime
 
 st.title("Workflow TPD - Simulasi Proses SIM TPD - Penunjukkan Majelis TPD")
@@ -168,11 +169,27 @@ if choice == "Admin DKPP":
         if majelis_input:
             majelis_list = [name.strip() for name in majelis_input.split(",")]
             
+            # Generate unique numbers
+            def generate_unique_number(prefix, existing_numbers, length=3):
+                while True:
+                    random_num = random.randint(100, 999)  # Generate a 3-digit random number
+                    new_number = f"{prefix}{random_num}"
+                    if new_number not in existing_numbers:
+                        return new_number
+            
+            existing_registrasi = all_data["Nomor Registrasi"].dropna().tolist()
+            existing_pengaduan = all_data["Nomor Pengaduan"].dropna().tolist()
+            existing_perkara = all_data["Nomor Perkara"].dropna().tolist()
+            
+            nomor_registrasi = generate_unique_number("150/02-07/SET-02/V/2025-", existing_registrasi)
+            nomor_pengaduan = generate_unique_number("171-P/L-DKPP/V/2025-", existing_pengaduan)
+            nomor_perkara = generate_unique_number("137 – PKE – DKPP/IV/2025-", existing_perkara)
+            
             new_data = {
                 "No": int(all_data["No"].max()) + 1 if not all_data.empty and not all_data["No"].isna().all() else 1,
-                "Nomor Registrasi": "150/02-07/SET-02/V/2025",
-                "Nomor Pengaduan": "171-P/L-DKPP/V/2025",
-                "Nomor Perkara": "137 – PKE – DKPP/IV/2025",
+                "Nomor Registrasi": nomor_registrasi,
+                "Nomor Pengaduan": nomor_pengaduan,
+                "Nomor Perkara": nomor_perkara,
                 "Nama Pengadu": "Supriadi Lawani",
                 "Nama Teradu": "Santo Gotia, Hidayat Hilengo",
                 "Majelis TPD": ", ".join(majelis_list),
@@ -267,17 +284,19 @@ if choice == "Admin DKPP":
         st.write("Tidak ada data dengan SK Penunjukkan yang sudah diunduh.")
 
     st.subheader("Kirim Notifikasi 'Sidang Selesai' Silahkan Upload Resume Max 2 hari setelah sidang")
-    eligible_data = all_data[(all_data["Status"].isin(["Disetujui", "SK Terkirim ke Majelis TPD"])) & (all_data["Notifikasi"] == False)].copy()
+    eligible_data = all_data[all_data["Status"].isin(["Disetujui", "SK Terkirim ke Majelis TPD"])].copy()
     if not eligible_data.empty:
         st.markdown('<div class="table-container">', unsafe_allow_html=True)
         selected_indices = []
         for i, (idx, row) in enumerate(eligible_data.iterrows()):
-            checked = st.checkbox(
-                f"Kirim Notifikasi untuk No {row['No']}", 
-                key=f"sidang_notif_{row['No']}"
-            )
-            if checked:
-                selected_indices.append(idx)
+            if not row["Notifikasi"]:  # Only show unchecked data for notification
+                checked = st.checkbox(
+                    f"Kirim Notifikasi 'Sidang Selesai' untuk No {row['No']}", 
+                    key=f"sidang_notif_{row['No']}",
+                    value=False
+                )
+                if checked:
+                    selected_indices.append(idx)
         
         if st.button("Kirim Notifikasi Sidang Selesai"):
             if selected_indices:
